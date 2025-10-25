@@ -9,14 +9,14 @@ const App = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Label for score quality
+  // Helper: label scores as Good / Needs Improvement / Poor
   const grade = (score) => {
     if (score >= 0.9) return { text: "Good ✅", color: "green" };
     if (score >= 0.5) return { text: "Needs Improvement ⚠️", color: "#e6a700" };
     return { text: "Poor ❌", color: "red" };
   };
 
-  // Extract full useful metrics from API
+  // Extract only useful PSI info
   const parseUsefulInfo = (data) => {
     const lr = data.lighthouseResult;
     const perf = lr.categories.performance.score;
@@ -25,24 +25,19 @@ const App = () => {
     return {
       performance: perf,
       metrics: {
-        LCP: audits["largest-contentful-paint"]?.displayValue || "N/A",
-        FCP: audits["first-contentful-paint"]?.displayValue || "N/A",
-        CLS: audits["cumulative-layout-shift"]?.displayValue || "N/A",
-        TBT: audits["total-blocking-time"]?.displayValue || "N/A",
-        INP:
-          audits["experimental-interaction-to-next-paint"]?.displayValue ||
-          audits["interaction-to-next-paint"]?.displayValue ||
-          "N/A",
-        TTFB:
-          audits["server-response-time"]?.displayValue ||
-          audits["time-to-first-byte"]?.displayValue ||
-          "N/A",
+        LCP: audits["largest-contentful-paint"].displayValue,
+        FCP: audits["first-contentful-paint"].displayValue,
+        CLS: audits["cumulative-layout-shift"].displayValue,
+        TBT: audits["total-blocking-time"].displayValue,
       },
-      // All issues (anything with score < 1)
-      issues: Object.entries(audits)
-        .filter(([_, a]) => a.score !== 1 && a.score !== null)
-        .map(([id, a]) => ({
-          id,
+      issues: [
+        audits["render-blocking-resources"],
+        audits["unused-javascript"],
+        audits["offscreen-images"],
+        audits["server-response-time"],
+      ]
+        .filter((a) => a && a.score !== 1 && a.score !== null)
+        .map((a) => ({
           title: a.title,
           desc: a.description || "",
           display: a.displayValue || "",
@@ -78,7 +73,7 @@ const App = () => {
 
   return (
     <div style={styles.container}>
-      <h1 style={styles.title}>🔍 Website Health Checker (Full Metrics)</h1>
+      <h1 style={styles.title}>🔍 Website Health Checker (Google PageSpeed)</h1>
 
       <div style={styles.inputBox}>
         <input
@@ -102,14 +97,12 @@ const App = () => {
             {Math.round(result.performance * 100)} / 100 — {grade(result.performance).text}
           </p>
 
-          <h3 style={{ marginTop: 20 }}>📊 Core Web Vitals & Key Metrics</h3>
+          <h3 style={{ marginTop: 20 }}>📊 Core Metrics</h3>
           <ul>
             <li>Largest Contentful Paint (LCP): {result.metrics.LCP}</li>
             <li>First Contentful Paint (FCP): {result.metrics.FCP}</li>
             <li>Cumulative Layout Shift (CLS): {result.metrics.CLS}</li>
             <li>Total Blocking Time (TBT): {result.metrics.TBT}</li>
-            <li>Interaction to Next Paint (INP): {result.metrics.INP}</li>
-            <li>Time to First Byte (TTFB): {result.metrics.TTFB}</li>
           </ul>
 
           {result.issues.length > 0 && (
@@ -136,7 +129,7 @@ const App = () => {
   );
 };
 
-// Styles
+// Simple inline styles
 const styles = {
   container: {
     fontFamily: "system-ui, sans-serif",
