@@ -72,6 +72,7 @@ const App = () => {
   };
 
   return (
+    <>
     <div style={styles.container}>
       <h1 style={styles.title}>🔍 Website Health Checker (Google PageSpeed)</h1>
 
@@ -125,8 +126,10 @@ const App = () => {
           )}
         </div>
       )}
-      <PlaceSearch />
+
     </div>
+    <PlaceSearch  />
+    </>
   );
 };
 

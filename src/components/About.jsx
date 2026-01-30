@@ -1,45 +1,56 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 
-const PlaceSearch = () => {
+const PlaceReviewCarousel = () => {
   const [query, setQuery] = useState('');
   const [placeData, setPlaceData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [filter5Star, setFilter5Star] = useState(false);
+  
+  // Carousel-ஐ நகர்த்த useRef தேவை
+  const carouselRef = useRef(null);
 
-  // REPLACE THIS with your actual API Key
   const API_KEY = 'AIzaSyAQFA-ijye-NCiMHCBc4-IeixbmYyICGl4'; 
+
+  const scroll = (direction) => {
+    if (carouselRef.current) {
+      const scrollAmount = 320; // ஒரு கார்டின் அகலம் + இடைவெளி
+      carouselRef.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      });
+    }
+  };
 
   const handleSearch = async () => {
     if (!query) return;
-
     setLoading(true);
     setError(null);
-    setPlaceData(null);
 
     try {
-      const response = await fetch('https://places.googleapis.com/v1/places:searchText', {
+      const searchRes = await fetch('https://places.googleapis.com/v1/places:searchText', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-Goog-Api-Key': API_KEY,
-          'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress'
+          'X-Goog-FieldMask': 'places.id'
         },
-        body: JSON.stringify({
-          textQuery: query
-        })
+        body: JSON.stringify({ textQuery: query })
       });
 
-      if (!response.ok) {
-        throw new Error(`Error: ${response.statusText}`);
-      }
+      const searchData = await searchRes.json();
+      const id = searchData.places?.[0]?.id;
+      if (!id) throw new Error("Place not found");
 
-      const data = await response.json();
-      
-      if (data.places && data.places.length > 0) {
-        setPlaceData(data.places[0]); // Get the first result
-      } else {
-        setError("No places found.");
-      }
+      const detailRes = await fetch(`https://places.googleapis.com/v1/places/${id}`, {
+        headers: {
+          'X-Goog-Api-Key': API_KEY,
+          'X-Goog-FieldMask': 'displayName,reviews,rating,userRatingCount'
+        }
+      });
+
+      const details = await detailRes.json();
+      setPlaceData(details);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -47,39 +58,98 @@ const PlaceSearch = () => {
     }
   };
 
+  const reviewsToDisplay = filter5Star 
+    ? placeData?.reviews?.filter(r => r.rating === 5) 
+    : placeData?.reviews;
+
   return (
-    <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '400px' }}>
-      <h2>Place ID Finder</h2>
-      
-      <div style={{ marginBottom: '15px' }}>
-        <input
-          type="text"
-          placeholder="Enter place name (e.g. Amma Kitchen)"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          style={{ padding: '8px', width: '70%', marginRight: '5px' }}
-        />
-        <button onClick={handleSearch} disabled={loading} style={{ padding: '8px' }}>
-          {loading ? 'Searching...' : 'Search'}
-        </button>
-      </div>
-
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-
-      {placeData && (
-        <div style={{ border: '1px solid #ddd', padding: '15px', borderRadius: '8px', backgroundColor: '#f9f9f9' }}>
-          <h3 style={{ margin: '0 0 10px 0' }}>{placeData.displayName.text}</h3>
-          <p><strong>Address:</strong> {placeData.formattedAddress}</p>
-          <p style={{ wordBreak: 'break-all' }}>
-            <strong>Place ID:</strong> <br />
-            <code style={{ color: '#d63384', background: '#f1f1f1', padding: '2px 4px' }}>
-              {placeData.id}
-            </code>
-          </p>
+    <div style={{ padding: '40px', fontFamily: 'Arial, sans-serif', backgroundColor: '#f4f7f6', minHeight: '100vh' }}>
+      <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+        
+        {/* Search Bar */}
+        <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+          <div style={{ display: 'inline-flex', gap: '10px', background: 'white', padding: '10px', borderRadius: '50px', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }}>
+            <input 
+              style={{ padding: '10px 20px', width: '300px', border: 'none', outline: 'none', borderRadius: '50px' }}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search Business Name..."
+            />
+            <button onClick={handleSearch} style={{ padding: '10px 25px', borderRadius: '50px', border: 'none', backgroundColor: '#4285F4', color: 'white', cursor: 'pointer' }}>
+              {loading ? '...' : 'Search'}
+            </button>
+          </div>
         </div>
-      )}
+
+        {placeData && (
+          <>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+              <h2>{placeData.displayName?.text}</h2>
+              <button onClick={() => setFilter5Star(!filter5Star)} style={{ cursor: 'pointer' }}>
+                {filter5Star ? 'Show All' : 'Show 5★ Only'}
+              </button>
+            </div>
+
+            {/* Buttons & Carousel */}
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              
+              {/* Left Arrow */}
+              <button onClick={() => scroll('left')} style={arrowStyle}>❮</button>
+
+              {/* The Carousel */}
+              <div 
+                ref={carouselRef}
+                style={{ 
+                  display: 'flex', 
+                  overflowX: 'hidden', // Buttons மூலம் மட்டும் நகர்த்த
+                  scrollBehavior: 'smooth',
+                  gap: '20px', 
+                  padding: '20px 0',
+                  width: '100%'
+                }}
+              >
+                {reviewsToDisplay?.map((rev, i) => (
+                  <div key={i} style={cardStyle}>
+                    <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+                      <img src={rev.authorAttribution?.photoUri} style={{ width: '40px', borderRadius: '50%' }} alt="" />
+                      <span style={{ fontWeight: 'bold' }}>{rev.authorAttribution?.displayName}</span>
+                    </div>
+                    <div style={{ color: '#f1c40f' }}>{"★".repeat(rev.rating)}</div>
+                    <p style={{ fontSize: '14px', color: '#333' }}>{rev.text?.text?.substring(0, 150)}...</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Right Arrow */}
+              <button onClick={() => scroll('right')} style={arrowStyle}>❯</button>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 };
 
-export default PlaceSearch;
+// Styles
+const cardStyle = {
+  minWidth: '300px',
+  background: 'white',
+  padding: '20px',
+  borderRadius: '15px',
+  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+  flexShrink: 0
+};
+
+const arrowStyle = {
+  background: '#fff',
+  border: '1px solid #ddd',
+  borderRadius: '50%',
+  width: '40px',
+  height: '40px',
+  cursor: 'pointer',
+  zIndex: 10,
+  fontSize: '20px',
+  boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
+};
+
+export default PlaceReviewCarousel;
