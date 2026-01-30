@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-
+import PlaceSearch from "../src/components/About"
 // ⚠️ Your API Key — visible to anyone (for testing only)
 const API_KEY = "AIzaSyCDprEQZ6vWjnAr4EN1bOnDjrqOhfv_FQU";
 
@@ -125,6 +125,7 @@ const App = () => {
           )}
         </div>
       )}
+      <PlaceSearch />
     </div>
   );
 };
